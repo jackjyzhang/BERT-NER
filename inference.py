@@ -45,14 +45,29 @@ tagger18 = SequenceTagger.load('flair/ner-english-ontonotes-large')
 def flairNER(tagger, text):
     sentence = Sentence(text)
     tagger.predict(sentence)
-    print(sentence)
+    # print(sentence)
     # iterate over entities and print
     for entity in sentence.get_spans('ner'):
         print(entity)
 
+from transformers import pipeline
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+get_summary = lambda x: summarizer(x, max_length=20, min_length=5, do_sample=False)[0]['summary_text']
+
+from keybert import KeyBERT
+kw_model = KeyBERT()
+extract_keywords = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(0, 2), use_maxsum=True, nr_candidates=20, top_n=5)
+
 print('Yelp + AG News:')
 for text in yelp_text + ag_text:
+    print('<bertNER>')
     bertNER(text)
+    print('<flairNER>')
     flairNER(tagger, text)
+    print('<flairNER 18>')
     flairNER(tagger18, text)
+    print('<bart summary>')
+    print(get_summary(text))
+    print('<keyBERT> keywords')
+    pp.pprint(extract_keywords(text))
     print('-'*70)
