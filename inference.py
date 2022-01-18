@@ -56,7 +56,9 @@ get_summary = lambda x: summarizer(x, max_length=20, min_length=5, do_sample=Fal
 
 from keybert import KeyBERT
 kw_model = KeyBERT()
-extract_keywords = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(0, 2), use_maxsum=True, nr_candidates=20, top_n=5)
+extract_keywords_maxsum = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_maxsum=True, nr_candidates=20, top_n=5)
+extract_keywords_mmr = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_mmr=True, diversity=0.7)
+extract_keywords = lambda x: kw_model.extract_keywords(x)
 
 import yake
 # default parameters https://github.com/LIAAD/yake/blob/master/yake/cli.py
@@ -76,6 +78,11 @@ for text in yelp_text + ag_text:
     summary = get_summary(text)
     print(summary)
     print('<keyBERT> keywords')
+    print('<<maxsum>>')
+    pp.pprint(extract_keywords_maxsum(text))
+    print('<<mmr>>')
+    pp.pprint(extract_keywords_mmr(text))
+    print('<<basic>>')
     pp.pprint(extract_keywords(text))
     print('<yake keywords>')
     pp.pprint(custom_kw_extractor.extract_keywords(text))
