@@ -57,8 +57,10 @@ get_summary = lambda x: summarizer(x, max_length=20, min_length=5, do_sample=Fal
 from keybert import KeyBERT
 kw_model = KeyBERT()
 extract_keywords_maxsum = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_maxsum=True, nr_candidates=20, top_n=5)
-extract_keywords_mmr = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_mmr=True, diversity=0.7)
-extract_keywords = lambda x: kw_model.extract_keywords(x)
+extract_keywords_mmr7 = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_mmr=True, diversity=0.7)
+extract_keywords_mmr5 = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_mmr=True, diversity=0.5)
+extract_keywords_mmr2 = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_mmr=True, diversity=0.2)
+extract_keywords = lambda x: kw_model.extract_keywords(x, top_n=20)
 
 import yake
 # default parameters https://github.com/LIAAD/yake/blob/master/yake/cli.py
@@ -80,8 +82,12 @@ for text in yelp_text + ag_text:
     print('<keyBERT> keywords')
     print('<<maxsum>>')
     pp.pprint(extract_keywords_maxsum(text))
-    print('<<mmr>>')
-    pp.pprint(extract_keywords_mmr(text))
+    print('<<mmr7>>')
+    pp.pprint(extract_keywords_mmr7(text))
+    print('<<mmr5>>')
+    pp.pprint(extract_keywords_mmr5(text))
+    print('<<mmr2>>')
+    pp.pprint(extract_keywords_mmr2(text))
     print('<<basic>>')
     pp.pprint(extract_keywords(text))
     print('<yake keywords>')
