@@ -1,3 +1,6 @@
+import os
+offline= bool(os.getenv('TRANSFORMERS_OFFLINE') or os.getenv('HF_DATASETS_OFFLINE'))
+keybert_model_name = 'all-mpnet-base-v2' if offline else 'sentence-transformers/all-mpnet-base-v2'
 import logging
 # logging.basicConfig(level=logging.DEBUG)
 import pprint
@@ -55,13 +58,14 @@ summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 get_summary = lambda x: summarizer(x, max_length=20, min_length=5, do_sample=False)[0]['summary_text']
 
 from sentence_transformers import SentenceTransformer
-embedding_model = SentenceTransformer('all-mpnet-base-v2')
+embedding_model = SentenceTransformer(keybert_model_name)
 from keybert import KeyBERT
 kw_model = KeyBERT(model=embedding_model)
 extract_keywords_maxsum = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_maxsum=True, nr_candidates=20, top_n=10)
 extract_keywords_mmr7 = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_mmr=True, diversity=0.7, top_n=10)
 extract_keywords_mmr5 = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_mmr=True, diversity=0.5, top_n=10)
 extract_keywords_mmr2 = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_mmr=True, diversity=0.2, top_n=10)
+extract_keywords_mmr1 = lambda x: kw_model.extract_keywords(x, keyphrase_ngram_range=(1, 1), use_mmr=True, diversity=0.1, top_n=10)
 extract_keywords = lambda x: kw_model.extract_keywords(x, top_n=20)
 
 import yake
@@ -90,6 +94,8 @@ for text in yelp_text + ag_text:
     pp.pprint(extract_keywords_mmr5(text))
     print('<<mmr2>>')
     pp.pprint(extract_keywords_mmr2(text))
+    print('<<mmr1>>')
+    pp.pprint(extract_keywords_mmr1(text))
     print('<<basic>>')
     pp.pprint(extract_keywords(text))
     print('<yake keywords>')
