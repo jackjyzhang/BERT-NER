@@ -1,16 +1,20 @@
 ## Extract attributes from free-form text
 # NER by flair
 # keyword by KeyBERT
+NOUN = 'NOUN'
+CARDINAL = 'CARDINAL'
 
 import os
 offline= bool(os.getenv('TRANSFORMERS_OFFLINE') or os.getenv('HF_DATASETS_OFFLINE'))
-flair_model_name = 'ner-ontonotes-large'
+flair_ner_model = 'ner-ontonotes-large'
 keybert_model_name = 'all-mpnet-base-v2' if offline else 'sentence-transformers/all-mpnet-base-v2'
+flair_pos_model = 'upos'
+summary_model_name = 'facebook/bart-large-cnn'
 
 from flair.data import Sentence
 from flair.models import SequenceTagger
 # load the NER tagger
-tagger18 = SequenceTagger.load(flair_model_name)
+tagger18 = SequenceTagger.load(flair_ner_model)
 def flairNER(tagger, text):
     sentence = Sentence(text)
     tagger.predict(sentence)
@@ -54,12 +58,40 @@ def extract_attributes(text, keywords_lim=5, use_mmr=False):
         keywords.append(keyword)
         keywords_stem.append(kwstem)
     keywords_trim = keywords[:keywords_lim]
-    return (entities, keywords_trim)
+    return entities, keywords_trim
 
-ex1 = """Had dinner at Papa J's with a group of 6.  I loved how the restaurant is in a old brick building with large windows. It felt like a neighborhood restaurant. On a Saturday night, the restaurant was full but not crowded.  We were seated in a room with poor acoustics.  It was difficult to hear people at our table and the waitress.  While she tried, I can see the asperation in her face when she had to repeat the specials to both sides of the table.\n\nPeople ordered bourbon on the rocks before dinner which seemed watered down, while my lemon drop was made nice.  The bread was delicious!  Can you describe it to be creamy?  The fried zucchini was lightly breaded and not too oily.  It was a large portion made up of 2 sliced zucchinis.\n\nWe ordered a variety of dishes.  The pasta dish was dry with more pasta than sauce or meat.  Those who ordered the fish special thought it was delicious.  The shrimp dish was enjoyed as well.  I had the chicken marsala which was pretty good.  The marsala sauce wasn't too thick, and the chicken moist.\n\nHard to tell if the deserts were \"homemade.\"  The tiramisu and spumoni were small in portion and meant for one. \n\nOn the whole, I was on the fence with my overall impression of Papa J's.  \"A-ok\" probably is the best way to describe it."""
+# --- from summary ---
 
-ex2 = """Science, Politics Collide in Election Year (AP) AP - With more than 4,000 scientists, including 48 Nobel Prize winners, having signed a statement opposing the Bush administration's use of scientific advice, this election year is seeing a new development in the uneasy relationship between science and politics."""
+pos_tagger = SequenceTagger.load(flair_pos_model)
+def flairPOS(text):
+    sentence = Sentence(text)
+    pos_tagger.predict(sentence)
+    return sentence.to_dict(tag_type='pos')['entities']
+
+from transformers import pipeline
+summarizer = pipeline("summarization", model=summary_model_name)
+def extract_attributes_summary(text, max_length=20, min_length=5, do_sample=False):
+    summary_text = summarizer(text, max_length=max_length, min_length=min_length, do_sample=do_sample)[0]['summary_text']
+    pos_list = flairPOS(summary_text)
+    nouns = [pos for pos in pos_list if pos['labels'][0].value == NOUN]
+    return summary_text, nouns
+
+def extract_atrributes_words(text, do_summary=False, keywords_lim=5, use_mmr=False, max_length=20, min_length=5, do_sample=False):
+    entities, keywords = extract_attributes(text, keywords_lim=keywords_lim, use_mmr=use_mmr)
+    atts = [e['text'] for e in entities if e['labels'][0].value != CARDINAL] + [e[0] for e in keywords]
+    if do_summary:
+        summary_text, nouns = extract_attributes_summary(text, max_length=max_length, min_length=min_length, do_sample=do_sample)
+        print(f'Summary: {summary_text}')
+        atts += [e['text'] for e in nouns]
+    return set(atts)
+
 
 if __name__=="__main__":
-    print(extract_attributes(ex1))
-    print(extract_attributes(ex2))
+    ex = ["""Had dinner at Papa J's with a group of 6.  I loved how the restaurant is in a old brick building with large windows. It felt like a neighborhood restaurant. On a Saturday night, the restaurant was full but not crowded.  We were seated in a room with poor acoustics.  It was difficult to hear people at our table and the waitress.  While she tried, I can see the asperation in her face when she had to repeat the specials to both sides of the table.\n\nPeople ordered bourbon on the rocks before dinner which seemed watered down, while my lemon drop was made nice.  The bread was delicious!  Can you describe it to be creamy?  The fried zucchini was lightly breaded and not too oily.  It was a large portion made up of 2 sliced zucchinis.\n\nWe ordered a variety of dishes.  The pasta dish was dry with more pasta than sauce or meat.  Those who ordered the fish special thought it was delicious.  The shrimp dish was enjoyed as well.  I had the chicken marsala which was pretty good.  The marsala sauce wasn't too thick, and the chicken moist.\n\nHard to tell if the deserts were \"homemade.\"  The tiramisu and spumoni were small in portion and meant for one. \n\nOn the whole, I was on the fence with my overall impression of Papa J's.  \"A-ok\" probably is the best way to describe it.""", """Science, Politics Collide in Election Year (AP) AP - With more than 4,000 scientists, including 48 Nobel Prize winners, having signed a statement opposing the Bush administration's use of scientific advice, this election year is seeing a new development in the uneasy relationship between science and politics."""]
+    for e in ex:
+        # print(extract_attributes(e))
+        # print(extract_attributes_summary(e))
+        print(e)
+        print(extract_atrributes_words(e))
+        print(extract_atrributes_words(e, do_summary=True))
+        print('---')
